@@ -175,7 +175,7 @@ func (c *Config) validate(seen map[string]bool) error {
 		return fmt.Errorf("Target must be IPv4")
 	}
 	if c.MTU < 576 || c.MTU > 65535 {
-		return fmt.Errorf("MTU %d out of range", c.MTU)
+		return fmt.Errorf("MTU %d out of range (576..65535)", c.MTU)
 	}
 	// wireguard-go stores the interval as uint16 seconds.
 	if c.Keepalive < 0 || c.Keepalive > 65535 {

@@ -24,13 +24,18 @@ type Tunnel struct {
 }
 
 // Start creates the userspace stack and brings the WireGuard device up.
-// The handshake itself happens lazily on the first Dial.
-func Start(cfg *config.Config) (*Tunnel, error) {
+// The handshake itself happens lazily on the first Dial. With verbose set,
+// wireguard-go's internal log (handshake retries etc.) goes to stderr.
+func Start(cfg *config.Config, verbose bool) (*Tunnel, error) {
 	tunDev, tnet, err := netstack.CreateNetTUN([]netip.Addr{cfg.Address}, nil, cfg.MTU)
 	if err != nil {
 		return nil, fmt.Errorf("create netstack: %v", err)
 	}
-	dev := device.NewDevice(tunDev, conn.NewDefaultBind(), device.NewLogger(device.LogLevelError, ""))
+	logLevel := device.LogLevelError
+	if verbose {
+		logLevel = device.LogLevelVerbose
+	}
+	dev := device.NewDevice(tunDev, conn.NewDefaultBind(), device.NewLogger(logLevel, "wireguard: "))
 
 	ipc, err := ipcConfig(cfg)
 	if err != nil {
@@ -66,8 +71,12 @@ func ipcConfig(cfg *config.Config) (string, error) {
 	if cfg.Keepalive > 0 {
 		fmt.Fprintf(&b, "persistent_keepalive_interval=%d\n", cfg.Keepalive)
 	}
-	b.WriteString("allowed_ip=0.0.0.0/0\n")
-	b.WriteString("allowed_ip=::/0\n")
+	// Cryptokey routing: accept tunneled packets only if their inner source
+	// address is the Target host. Everything this process dials goes to
+	// Target anyway, so a wider allowed_ip (0.0.0.0/0) would only widen
+	// what a compromised peer could inject into the local netstack.
+	target := cfg.Target.Addr()
+	fmt.Fprintf(&b, "allowed_ip=%s\n", netip.PrefixFrom(target, target.BitLen()))
 	return b.String(), nil
 }
 

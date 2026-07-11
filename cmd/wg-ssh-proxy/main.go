@@ -23,6 +23,7 @@ func main() {
 	log.SetFlags(0)
 	log.SetPrefix("wg-ssh-proxy: ")
 	configPath := flag.String("config", config.DefaultPath(), "path to config file")
+	verbose := flag.Bool("v", false, "log WireGuard internals to stderr")
 	flag.Parse()
 
 	cfg, err := config.Load(*configPath)
@@ -31,7 +32,7 @@ func main() {
 		os.Exit(2)
 	}
 
-	tun, err := tunnel.Start(cfg)
+	tun, err := tunnel.Start(cfg, *verbose)
 	if err != nil {
 		log.Print(err)
 		os.Exit(1)
@@ -39,7 +40,7 @@ func main() {
 	defer tun.Close()
 
 	ctx, cancel := context.WithTimeout(context.Background(), dialTimeout)
-	conn, err := tun.DialContext(ctx, cfg.Target)
+	conn, err := tun.DialContext(ctx, cfg.Target.String())
 	cancel()
 	if err != nil {
 		if !tun.HandshakeDone() {

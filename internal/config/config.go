@@ -44,9 +44,9 @@ type Config struct {
 	PrivateKey    Key
 	Address       netip.Addr // client's WireGuard IP
 	PeerPublicKey Key
-	PresharedKey  *Key   // optional
-	Endpoint      string // server "host:port" (hostname allowed)
-	Target        string // dial destination "ip:port" inside the tunnel
+	PresharedKey  *Key           // optional
+	Endpoint      string         // server "host:port" (hostname allowed)
+	Target        netip.AddrPort // dial destination inside the tunnel
 	MTU           int
 	Keepalive     int // persistent keepalive seconds, 0 = off
 }
@@ -134,18 +134,22 @@ func (c *Config) set(key, value string) error {
 			c.PresharedKey = &k
 		}
 	case "Address":
-		var prefix netip.Prefix
-		if prefix, err = netip.ParsePrefix(value); err == nil {
-			c.Address = prefix.Addr()
+		// WireGuard configs usually write "10.0.0.2/32". The prefix length
+		// carries no meaning here (the netstack holds just this one address),
+		// so a bare "10.0.0.2" is accepted too.
+		if strings.Contains(value, "/") {
+			var prefix netip.Prefix
+			if prefix, err = netip.ParsePrefix(value); err == nil {
+				c.Address = prefix.Addr()
+			}
+		} else {
+			c.Address, err = netip.ParseAddr(value)
 		}
 	case "Endpoint":
 		_, _, err = net.SplitHostPort(value)
 		c.Endpoint = value
 	case "Target":
-		var ap netip.AddrPort
-		if ap, err = netip.ParseAddrPort(value); err == nil {
-			c.Target = ap.String()
-		}
+		c.Target, err = netip.ParseAddrPort(value)
 	case "MTU":
 		c.MTU, err = strconv.Atoi(value)
 	case "PersistentKeepalive":
@@ -165,8 +169,9 @@ func (c *Config) validate(seen map[string]bool) error {
 	if c.MTU < 576 || c.MTU > 65535 {
 		return fmt.Errorf("MTU %d out of range", c.MTU)
 	}
-	if c.Keepalive < 0 {
-		return fmt.Errorf("PersistentKeepalive must be >= 0")
+	// wireguard-go stores the interval as uint16 seconds.
+	if c.Keepalive < 0 || c.Keepalive > 65535 {
+		return fmt.Errorf("PersistentKeepalive must be 0..65535")
 	}
 	return nil
 }

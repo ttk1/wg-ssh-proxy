@@ -31,8 +31,8 @@ func TestParseValid(t *testing.T) {
 	if cfg.Endpoint != "server.example.com:51820" {
 		t.Errorf("Endpoint = %q", cfg.Endpoint)
 	}
-	if cfg.Target != "10.0.0.1:22" {
-		t.Errorf("Target = %q", cfg.Target)
+	if got := cfg.Target.String(); got != "10.0.0.1:22" {
+		t.Errorf("Target = %q", got)
 	}
 	if cfg.MTU != 1420 {
 		t.Errorf("MTU default = %d, want 1420", cfg.MTU)
@@ -62,6 +62,17 @@ PersistentKeepalive = 25
 	}
 }
 
+// Address is accepted both as "10.0.0.2/32" (WireGuard style) and bare.
+func TestParseAddressWithoutPrefix(t *testing.T) {
+	cfg, err := Parse(strings.Replace(validConfig, "10.0.0.2/32", "10.0.0.2", 1))
+	if err != nil {
+		t.Fatalf("Parse: %v", err)
+	}
+	if got := cfg.Address.String(); got != "10.0.0.2" {
+		t.Errorf("Address = %q", got)
+	}
+}
+
 func TestParseErrors(t *testing.T) {
 	drop := func(key string) string {
 		var kept []string
@@ -84,6 +95,7 @@ func TestParseErrors(t *testing.T) {
 		"line without equals": validConfig + "\njunk line",
 		"MTU out of range":    validConfig + "\nMTU = 100",
 		"negative keepalive":  validConfig + "\nPersistentKeepalive = -1",
+		"keepalive too large": validConfig + "\nPersistentKeepalive = 65536",
 	}
 	for name, text := range tests {
 		if _, err := Parse(text); err == nil {

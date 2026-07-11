@@ -1,0 +1,6 @@
+# build outputs
+/wg-ssh-proxy
+/wg-ssh-proxy.exe
+
+# real configs contain WireGuard private keys — only *.example belongs here
+*.conf

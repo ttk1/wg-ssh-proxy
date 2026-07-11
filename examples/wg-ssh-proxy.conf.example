@@ -1,0 +1,16 @@
+# wg-ssh-proxy configuration
+#
+# Copy to %USERPROFILE%\.wg-ssh\config (Linux/macOS: ~/.wg-ssh/config).
+# This file holds the WireGuard private key: never commit it, and on
+# Unix set chmod 600 (the proxy refuses to start otherwise).
+
+PrivateKey    = <client private key, base64 (wg genkey)>
+Address       = 10.0.0.2/32                  # client's WireGuard IP
+PeerPublicKey = <server public key, base64>
+Endpoint      = <server global IP or hostname>:51820
+Target        = 10.0.0.1:22                  # server WireGuard IP : sshd port
+
+# Optional:
+# PresharedKey        = <base64 (wg genpsk); recommended>
+# MTU                 = 1420
+# PersistentKeepalive = 25                   # only if a strict NAT drops the tunnel

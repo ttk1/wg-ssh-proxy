@@ -1,0 +1,12 @@
+# ~/.ssh/config
+Host myserver
+  HostName 10.0.0.1
+  User <user>
+  # Linux/macOS: ProxyCommand /path/to/wg-ssh-proxy
+  ProxyCommand C:\Users\<user>\bin\wg-ssh-proxy.exe
+
+  # Optional: hide the ~1 RTT WireGuard handshake on repeat connections.
+  # Some Windows OpenSSH builds lack ControlMaster; remove if it errors.
+  #ControlMaster auto
+  #ControlPath ~/.ssh/cm-%r@%h:%p
+  #ControlPersist 10m

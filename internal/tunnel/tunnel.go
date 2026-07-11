@@ -75,8 +75,7 @@ func ipcConfig(cfg *config.Config) (string, error) {
 	// address is the Target host. Everything this process dials goes to
 	// Target anyway, so a wider allowed_ip (0.0.0.0/0) would only widen
 	// what a compromised peer could inject into the local netstack.
-	target := cfg.Target.Addr()
-	fmt.Fprintf(&b, "allowed_ip=%s\n", netip.PrefixFrom(target, target.BitLen()))
+	fmt.Fprintf(&b, "allowed_ip=%s/32\n", cfg.Target.Addr())
 	return b.String(), nil
 }
 

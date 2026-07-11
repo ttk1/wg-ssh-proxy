@@ -42,11 +42,11 @@ func parseKey(s string) (Key, error) {
 // Config is the parsed and validated configuration.
 type Config struct {
 	PrivateKey    Key
-	Address       netip.Addr // client's WireGuard IP
+	Address       netip.Addr // client's WireGuard IP (IPv4)
 	PeerPublicKey Key
 	PresharedKey  *Key           // optional
 	Endpoint      string         // server "host:port" (hostname allowed)
-	Target        netip.AddrPort // dial destination inside the tunnel
+	Target        netip.AddrPort // dial destination inside the tunnel (IPv4)
 	MTU           int
 	Keepalive     int // persistent keepalive seconds, 0 = off
 }
@@ -165,6 +165,14 @@ func (c *Config) validate(seen map[string]bool) error {
 		if !seen[key] {
 			return fmt.Errorf("missing required key %q", key)
 		}
+	}
+	// The tunnel is IPv4-only. Rejecting IPv6 (including ::ffff: forms) here
+	// turns a silent connect failure into a clear config error.
+	if !c.Address.Is4() {
+		return fmt.Errorf("Address must be IPv4")
+	}
+	if !c.Target.Addr().Is4() {
+		return fmt.Errorf("Target must be IPv4")
 	}
 	if c.MTU < 576 || c.MTU > 65535 {
 		return fmt.Errorf("MTU %d out of range", c.MTU)

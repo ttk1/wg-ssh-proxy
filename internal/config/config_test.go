@@ -96,6 +96,9 @@ func TestParseErrors(t *testing.T) {
 		"MTU out of range":    validConfig + "\nMTU = 100",
 		"negative keepalive":  validConfig + "\nPersistentKeepalive = -1",
 		"keepalive too large": validConfig + "\nPersistentKeepalive = 65536",
+		"IPv6 Address":        drop("Address") + "\nAddress = fd00::2/128",
+		"IPv6 Target":         drop("Target") + "\nTarget = [fd00::1]:22",
+		"4-in-6 Target":       drop("Target") + "\nTarget = [::ffff:10.0.0.1]:22",
 	}
 	for name, text := range tests {
 		if _, err := Parse(text); err == nil {

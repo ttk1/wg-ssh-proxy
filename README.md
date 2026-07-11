@@ -42,6 +42,10 @@ docker run --rm -v "${PWD}:/src" -w /src -e GOOS=darwin -e GOARCH=arm64 golang:1
 docker run --rm -v "${PWD}:/src" -w /src golang:1.25.12 make test
 ```
 
+Windows では PowerShell 推奨。Git Bash / MSYS 系シェルで実行する場合は
+パス変換に注意(`-v` / `-w` のパスが Windows 形式に書き換えられて失敗する。
+`MSYS_NO_PATHCONV=1` を付けるか、パスの先頭を `//` にすると回避できる)。
+
 ## セットアップ
 
 以下、例としてサーバ側 wg IP を `10.0.0.1`、クライアント側を `10.0.0.2`、

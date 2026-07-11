@@ -3,8 +3,8 @@ Host myserver
   HostName 10.0.0.1
   User <user>
   # Linux/macOS: ProxyCommand /path/to/wg-ssh-proxy
-  # Windows でもフォワードスラッシュ表記にする (バックスラッシュは
-  # Git Bash / MSYS 系 ssh のシェル展開で消える。README 参照)
+  # Use forward slashes even on Windows: Git Bash / MSYS ssh runs this
+  # through a shell that eats backslashes (see README).
   ProxyCommand C:/Users/<user>/bin/wg-ssh-proxy.exe
 
   # Optional: hide the ~1 RTT WireGuard handshake on repeat connections.

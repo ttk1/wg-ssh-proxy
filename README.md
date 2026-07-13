@@ -140,17 +140,35 @@ ssh -o ProxyCommand="C:/Users/<user>/bin/wg-ssh-proxy.exe -v" myserver
 
 ## 公開 22 番を閉じる手順(締め出し防止・順序厳守)
 
+閉じ方は環境に応じて 2 通り。**基盤側にファイアウォール(クラウドの
+セキュリティグループ等)があれば A、無ければ B** を採る。A は基盤側で閉じるため
+パケットがホストに到達せず、ホスト内 nftables のロード失敗・順序ミスで
+「うっかり開く」方向に倒れない。復旧も管理画面から 22 を戻すだけで済み、
+nftables を触れない詰みが無い。ホスト側 nftables はどちらの場合も二重防御として残す。
+
+共通の事前確認(どちらの方式でも必須):
+
 1. 本プロキシ経由で SSH 疎通を確認する。
 2. ホスティング事業者の Web コンソール(KVM / シリアル)でログインできることを**実際に試す**(最後の命綱)。
+
+### A. 基盤側ファイアウォールで閉じる
+
+3. **先に WireGuard の UDP 許可が基盤側に入っていることを確認する**(SSH 用 wg の
+   ListenPort。SSH 用テンプレは TCP/22 しか開けないことが多く、UDP を明示許可して
+   いないと 22 を外した瞬間に wg も通らず完全に締め出される)。
+4. 基盤側から **TCP/22 の許可を外す**(許可ルールを積む方式のファイアウォールでは
+   「22 の許可を削除する」操作になる)。
+5. 外部から `nc -vz <host> 22` が落ち、本プロキシ経由の SSH は生きていることを確認。
+6. ホスト側 nftables はそのまま残す。
+
+### B. ホスト nftables で閉じる
+
 3. nftables の新ルールは**時限ロールバック(デッドマン式)**で適用する:
    ```sh
    nft -f /etc/nftables.new.conf && sleep 300 && nft -f /etc/nftables.backup.conf
    ```
    を tmux 内で実行し、別端末から**新ルール越しに**入り直せたら sleep を kill して永続化。
 4. 公開 `tcp dport 22` の accept を削除し、`iifname "wg0" tcp dport 22 accept` のみ許可。
-5. 最後に sshd の `ListenAddress` を WireGuard インターフェースのサーバ側 IP に絞って再起動する
-   (wg 経由の SSH セッションを維持したまま行う)。ブート時に wg0 起動前の bind で失敗しないよう、
-   `sshd.service` に `After=wg-quick@wg0.service` の順序依存を追加する。
 
 ## 運用メモ
 

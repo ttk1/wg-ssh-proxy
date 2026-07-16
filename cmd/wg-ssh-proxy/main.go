@@ -38,27 +38,45 @@ func main() {
 			os.Exit(runKeyCommand(os.Args[1], os.Args[2:]))
 		}
 	}
+	os.Exit(runProxy())
+}
 
+// runProxy runs the ProxyCommand mode and returns the exit code. os.Exit
+// skips deferred calls, so anything needing cleanup lives behind this
+// function's defers instead of main's.
+func runProxy() int {
 	configPath := flag.String("config", config.DefaultPath(), "path to config file")
 	verbose := flag.Bool("v", false, "log WireGuard internals to stderr")
+	flag.Usage = func() {
+		fmt.Fprintln(flag.CommandLine.Output(), "usage: wg-ssh-proxy [flags]        (SSH ProxyCommand mode)")
+		fmt.Fprintln(flag.CommandLine.Output(), "       wg-ssh-proxy genkey | pubkey | genpsk")
+		flag.PrintDefaults()
+	}
 	flag.Parse()
 	// A leftover positional argument is a typo (e.g. "genkye"); running the
 	// proxy instead would just hang waiting on stdin.
 	if flag.NArg() > 0 {
 		log.Printf("unknown command %q (subcommands: genkey, pubkey, genpsk)", flag.Arg(0))
-		os.Exit(2)
+		return 2
+	}
+
+	// DefaultPath returns "" when the home directory is unknown; catching it
+	// here beats the bare `open : no such file` that Load would print.
+	if *configPath == "" {
+		log.Print("cannot determine home directory for the default config path; pass -config")
+		return 2
 	}
 
 	cfg, err := config.Load(*configPath)
 	if err != nil {
 		log.Print(err)
-		os.Exit(2)
+		return 2
 	}
 
 	tun, err := tunnel.Start(cfg, *verbose)
 	if err != nil {
 		log.Print(err)
-		os.Exit(1)
+		return 1
 	}
 	defer tun.Close()
 
@@ -71,13 +89,14 @@ func main() {
 		} else {
 			log.Printf("handshake OK but connect to %s failed (check Target / sshd): %v", cfg.Target, err)
 		}
-		os.Exit(1)
+		return 1
 	}
 
 	if err := pipe.Run(conn, os.Stdin, os.Stdout); err != nil {
 		log.Print(err)
-		os.Exit(1)
+		return 1
 	}
+	return 0
 }
 
 // runKeyCommand implements the wg(8)-compatible key subcommands and returns

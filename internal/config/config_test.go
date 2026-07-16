@@ -73,6 +73,18 @@ func TestParseAddressWithoutPrefix(t *testing.T) {
 	}
 }
 
+// Files written by Windows editors: UTF-8 BOM at the start, CRLF line ends.
+func TestParseBOMAndCRLF(t *testing.T) {
+	text := "\xef\xbb\xbf" + strings.ReplaceAll(validConfig, "\n", "\r\n")
+	cfg, err := Parse(text)
+	if err != nil {
+		t.Fatalf("Parse: %v", err)
+	}
+	if cfg.Endpoint != "server.example.com:51820" {
+		t.Errorf("Endpoint = %q", cfg.Endpoint)
+	}
+}
+
 func TestParseErrors(t *testing.T) {
 	drop := func(key string) string {
 		var kept []string
@@ -90,12 +102,17 @@ func TestParseErrors(t *testing.T) {
 		"short key":           drop("PrivateKey") + "\nPrivateKey = AAAA",
 		"hostname in Target":  drop("Target") + "\nTarget = server.example.com:22",
 		"endpoint no port":    drop("Endpoint") + "\nEndpoint = 192.0.2.1",
+		"endpoint no host":    drop("Endpoint") + "\nEndpoint = :51820",
+		"endpoint port zero":  drop("Endpoint") + "\nEndpoint = 192.0.2.1:0",
+		"endpoint named port": drop("Endpoint") + "\nEndpoint = 192.0.2.1:wg",
 		"unknown key":         validConfig + "\nBogus = 1",
 		"duplicate key":       validConfig + "\nTarget = 10.0.0.1:22",
 		"line without equals": validConfig + "\njunk line",
 		"MTU out of range":    validConfig + "\nMTU = 100",
 		"negative keepalive":  validConfig + "\nPersistentKeepalive = -1",
 		"keepalive too large": validConfig + "\nPersistentKeepalive = 65536",
+		"Target port zero":    drop("Target") + "\nTarget = 10.0.0.1:0",
+		"Target is own addr":  drop("Target") + "\nTarget = 10.0.0.2:22",
 		"IPv6 Address":        drop("Address") + "\nAddress = fd00::2/128",
 		"IPv6 Target":         drop("Target") + "\nTarget = [fd00::1]:22",
 		"4-in-6 Target":       drop("Target") + "\nTarget = [::ffff:10.0.0.1]:22",
